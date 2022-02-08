@@ -1,33 +1,74 @@
-import Editor from "@monaco-editor/react";
+import Editor, { EditorDidMount } from "@monaco-editor/react";
+import prettier from "prettier";
+import parser from "prettier/parser-babel";
+import { useRef } from "react";
+import './CodeEditor.css'
 
 
 interface CodeEditorProps {
-    initialValue: string
-    onChange(value: string): void
+    initialValue: string;
+    onChange(value: string): void;
 }
-
 
 const CodeEditor: React.FC<CodeEditorProps> = ({ onChange, initialValue }) => {
+    const editorRef = useRef<any>();
 
-    return <Editor height={200}
-        onChange={(value) => {
-            if (!value) value = '';
-            onChange(value);
-        }}
-        language="javascript"
-        theme="vs-dark"
-        value={initialValue}
-        options={{
-            wordWrap: "on",
-            minimap: { enabled: false },
-            showUnused: false,
-            folding: false,
-            lineNumbersMinChars: 3,
-            fontSize: 11,
-            scrollBeyondLastLine: false,
-            automaticLayout: true
-        }} />
+    const onEditorDidMount: EditorDidMount = (getValue, monacoEditor) => {
+        editorRef.current = monacoEditor;
+        monacoEditor.onDidChangeModelContent(() => {
+            onChange(getValue());
+        });
 
-}
+        monacoEditor.getModel()?.updateOptions({ tabSize: 2 });
 
-export default CodeEditor
+
+    };
+
+    const onFormatClick = () => {
+        // get current value from editor
+        const unformatted = editorRef.current.getModel().getValue();
+
+        // format that value
+        const formatted = prettier
+            .format(unformatted, {
+                parser: 'babel',
+                plugins: [parser],
+                useTabs: false,
+                semi: true,
+                singleQuote: true,
+            })
+            .replace(/\n$/, '');
+
+        // set the formatted value back in the editor
+        editorRef.current.setValue(formatted);
+    };
+
+    return (
+        <div className="editor-wrapper">
+            <button
+                className="button button-format is-primary is-small"
+                onClick={onFormatClick}
+            >
+                Format
+            </button>
+            <Editor
+                editorDidMount={onEditorDidMount}
+                value={initialValue}
+                theme="dark"
+                language="javascript"
+                options={{
+                    wordWrap: 'on',
+                    minimap: { enabled: false },
+                    showUnused: false,
+                    folding: false,
+                    lineNumbersMinChars: 3,
+                    fontSize: 11,
+                    scrollBeyondLastLine: false,
+                    automaticLayout: true,
+                }}
+            />
+        </div>
+    );
+};
+
+export default CodeEditor;
